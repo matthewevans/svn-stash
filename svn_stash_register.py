@@ -25,165 +25,159 @@ TARGET_FILE_DEFAULT="all"
 STASH_REGISTER_FILENAME = ".stashed_register"
 
 class svn_stash_register:
-	"""A class to register all stashes."""
-	def __init__(self):
-		self.stashes = [] #list of stashes in the current dir
-		self.all_stashes = [] #list of all stashes in all directories
-		self.load() #load register
+    """A class to register all stashes."""
+    def __init__(self):
+        self.stashes = [] #list of stashes in the current dir
+        self.all_stashes = [] #list of all stashes in all directories
+        self.load() #load register
 
-	def load(self):
-   		try:
-   			create_stash_dir_if_any()
-			current_dir = SVN_STASH_DIR + "/" + STASH_REGISTER_FILENAME
-			with open(current_dir,"r") as f:
-				for line in f:
-					content = line.rstrip()
-					content = content.split(" ")
-					if len(content)>0:
-						stash_id = content[0]
-						if is_a_current_stash(stash_id):
-							self.stashes.append(stash_id)
-						self.all_stashes.append(stash_id)
-				f.close()
-		except IOError as e:
-   			print e
-			print 'registerFile cannot be readed.'
+    def load(self):
+        try:
+            create_stash_dir_if_any()
+            current_dir = SVN_STASH_DIR + "/" + STASH_REGISTER_FILENAME
+            with open(current_dir,"r") as f:
+                for line in f:
+                    content = line.rstrip()
+                    content = content.split(" ")
+                    if len(content)>0:
+                        stash_id = content[0]
+                        if is_a_current_stash(stash_id):
+                            self.stashes.append(stash_id)
+                        self.all_stashes.append(stash_id)
+                f.close()
+        except IOError as e:
+            print e
+            print 'registerFile cannot be readed.'
 
-   	def write(self):
- 		try:
- 			create_stash_dir_if_any()
-			current_dir = SVN_STASH_DIR + "/" + STASH_REGISTER_FILENAME
-   			with open(current_dir,"w") as f:
-   				content = []
-   				for stash_id in self.all_stashes:
-   					line = str(stash_id) + "\n"
-	   				content.append(line)
-   				f.writelines(content)
-   				f.close()
-		except IOError as e:
-   			print 'registerFile cannot be created.'  
+    def write(self):
+        try:
+            create_stash_dir_if_any()
+            current_dir = SVN_STASH_DIR + "/" + STASH_REGISTER_FILENAME
+            with open(current_dir,"w") as f:
+                content = []
+                for stash_id in self.all_stashes:
+                    line = str(stash_id) + "\n"
+                    content.append(line)
+                f.writelines(content)
 
-   	def obtain_last_stash(self):
-   		length = len(self.stashes)
-   		if length>0:
-   			stash = svn_stash()
-   			stash_id = self.stashes[length-1]
-   			stash.load(stash_id)
-   			return stash
-   		return False
+        except IOError as e:
+            print 'registerFile cannot be created.'
 
-   	def register_stash(self,stash): #stash must be a svn-stash instance
-   		stash_id = stash.key
-   		self.stashes.append(stash_id)
-		self.all_stashes.append(stash_id)
-   		stash.write()
-		print "create stash " + str(stash_id)
+    def obtain_last_stash(self):
+        length = len(self.stashes)
+        if length>0:
+            stash = svn_stash()
+            stash_id = self.stashes[length-1]
+            stash.load(stash_id)
+            return stash
+        return False
 
-   	def delete_stash(self,stash):
-   		stash_id = stash.key
-   		self.stashes.remove(stash_id)
-		self.all_stashes.remove(stash_id)
-   		self.write()
-   		#Remove stash files
-   		stash.clear()
-		print "delete stash " + str(stash_id)
+    def register_stash(self,stash): #stash must be a svn-stash instance
+        stash_id = stash.key
+        self.stashes.append(stash_id)
+        self.all_stashes.append(stash_id)
+        stash.write()
+        print "create stash " + str(stash_id)
+
+    def delete_stash(self,stash):
+        stash_id = stash.key
+        self.stashes.remove(stash_id)
+        self.all_stashes.remove(stash_id)
+        self.write()
+        #Remove stash files
+        stash.clear()
+        print "delete stash " + str(stash_id)
 
 class svn_stash:
-	"""A class to contain all information about stashes."""
-	def __init__(self):
-		self.files = {} #dictionary of files
-		self.timestamp = datetime.now() #time of creation
-		self.key = random.getrandbits(128) #unique identifier
-		self.root_url = CURRENT_DIR
+    """A class to contain all information about stashes."""
+    def __init__(self):
+        self.files = {} #dictionary of files
+        self.timestamp = datetime.now() #time of creation
+        self.key = random.getrandbits(128) #unique identifier
+        self.root_url = CURRENT_DIR
 
-	def push(self,target_file,filename_list):
-		create_stash_dir_if_any()
-		if target_file == "all":
-			for filename in filename_list:
-				self.push(filename,filename_list)
-		else:
-			randkey = random.getrandbits(128) #unique identifier
-			self.files[target_file] = randkey
-			result = os.popen("svn diff " + target_file + " > " + SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch").read()
-			result += os.popen("svn revert " + target_file).read()
-			#print "push " + target_file
+    def push(self,target_file,filename_list):
+        create_stash_dir_if_any()
+        if target_file == "all":
+            for filename in filename_list:
+                self.push(filename,filename_list)
+        else:
+            randkey = random.getrandbits(128) #unique identifier
+            self.files[target_file] = randkey
+            result = os.popen("svn diff " + target_file + " > " + SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch").read()
+            result += os.popen("svn revert " + target_file).read()
 
-	def pop(self):
-		result = ""
-		if os.path.exists(SVN_STASH_DIR):
-			for target_file in self.files:
-				randkey = self.files[target_file]
-				result = os.popen("patch -p0 < " + SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch").read()
-				result += os.popen("rm " + SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch").read()
-				#print "pop " + target_file
-			#delete the file of svn_stash
-			result += os.popen("rm " + SVN_STASH_DIR + "/" + str(self.key)).read()
+    def pop(self):
+        if os.path.exists(SVN_STASH_DIR):
+            for target_file in self.files:
+                randkey = self.files[target_file]
+                print os.popen("svn patch " + SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch").read().strip()
 
-	def write(self):
-		#Create file for svn stash
-		try:
-			current_dir = SVN_STASH_DIR + "/" + str(self.key)
-   			with open(current_dir,"w") as f:
-   				content = []
-   				#add the first line with root url
-   				line = self.root_url + "\n"
-   				content.append(line)
-   				for target_file in self.files:
-   					line = target_file + " " + str(self.files[target_file]) + "\n"
-	   				content.append(line)
-   				f.writelines(content)
-				f.close()
-		except IOError as e:
-   			print 'randFile cannot be created.'
+    def write(self):
+        #Create file for svn stash
+        try:
+            current_dir = SVN_STASH_DIR + "/" + str(self.key)
+            with open(current_dir,"w") as f:
+                content = []
+                #add the first line with root url
+                line = self.root_url + "\n"
+                content.append(line)
+                for target_file in self.files:
+                    line = target_file + " " + str(self.files[target_file]) + "\n"
+                    content.append(line)
+                f.writelines(content)
 
-   	def clear(self):
-   		result = ""
-		if os.path.exists(SVN_STASH_DIR):
-			for target_file in self.files:  
-				randkey = self.files[target_file] 		
-   				result += os.popen("rm " + SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch").read()
-   			result += os.popen("rm " + SVN_STASH_DIR + "/" + str(self.key)).read()
+        except IOError as e:
+            print 'randFile cannot be created.'
 
-   	def load(self,stash_id):
-   		try:
-			current_dir = SVN_STASH_DIR + "/" + str(stash_id)
-			with open(current_dir,"r") as f:
-				is_first = True
-				for line in f:
-					content = line.rstrip()
-					#if is the first line, then it is the root url
-					if is_first:
-						self.root_url = content
-						is_first = False
-					#it is stashed filename, otherwise
-					else:
-						content = content.split(" ")
-						if len(content)>=2:
-							self.files[content[0]] = content[1]
-				self.key = stash_id
-				f.close()
-		except IOError as e:
-   			print 'randFile cannot be readed.'
+    def clear(self):
+        result = ""
+        if os.path.exists(SVN_STASH_DIR):
+            for target_file in self.files:
+                randkey = self.files[target_file]
+                result += os.popen("rm " + SVN_STASH_DIR + "/" + str(randkey) + ".stash.patch").read()
+            result += os.popen("rm " + SVN_STASH_DIR + "/" + str(self.key)).read()
 
-   	def __str__(self):
-   		content = print_hr(70)
-   		content += "stash " + str(self.key)
-   		content += print_hr(70)
-   		content += "root in: <" + self.root_url + ">\n"
-   		for filename in self.files:
-   			try:
-   				real_dir =  filename + ".stash.patch"
-				current_dir = SVN_STASH_DIR + "/" + self.files[filename] + ".stash.patch"	
-				content += print_hr()
-				content += "file " + real_dir
-				content += print_hr()
-				with open(current_dir,"r") as f:
-					for line in f:
-						content += line
-					f.close()
-			except IOError as e:
-				content += 'randFile cannot be shown.\n'
-		return content
+    def load(self,stash_id):
+        try:
+            current_dir = SVN_STASH_DIR + "/" + str(stash_id)
+            with open(current_dir,"r") as f:
+                is_first = True
+                for line in f:
+                    content = line.rstrip()
+                    #if is the first line, then it is the root url
+                    if is_first:
+                        self.root_url = content
+                        is_first = False
+                    #it is stashed filename, otherwise
+                    else:
+                        content = content.split(" ")
+                        if len(content)>=2:
+                            self.files[content[0]] = content[1]
+                self.key = stash_id
+
+        except IOError as e:
+            print 'randFile cannot be read.'
+
+    def __str__(self):
+        content = print_hr(70)
+        content += "stash " + str(self.key)
+        content += print_hr(70)
+        content += "root in: <" + self.root_url + ">\n"
+        for filename in self.files:
+            try:
+                real_dir =  filename + ".stash.patch"
+                current_dir = SVN_STASH_DIR + "/" + self.files[filename] + ".stash.patch"
+                content += print_hr()
+                content += "file " + real_dir
+                content += print_hr()
+                with open(current_dir,"r") as f:
+                    for line in f:
+                        content += line
+            except IOError as e:
+                content += 'randFile cannot be shown.\n'
+
+        return content
 
 
 ########################
@@ -191,25 +185,25 @@ class svn_stash:
 ########################
 #Create stash directory
 def create_stash_dir_if_any():
-	if not os.path.exists(SVN_STASH_DIR):
-		os.makedirs(SVN_STASH_DIR)
-	stash_register_file = SVN_STASH_DIR + "/" + STASH_REGISTER_FILENAME
-	if not os.path.exists(stash_register_file):
-		try:
-			f = open(stash_register_file, "w")
-		except IOError:
-			print "registerFile cannot be created."
+    if not os.path.exists(SVN_STASH_DIR):
+        os.makedirs(SVN_STASH_DIR)
+    stash_register_file = SVN_STASH_DIR + "/" + STASH_REGISTER_FILENAME
+    if not os.path.exists(stash_register_file):
+        try:
+            f = open(stash_register_file, "w")
+        except IOError:
+            print "registerFile cannot be created."
 
 def print_hr(lng=30):
-	return "\n" + ("-"*lng) + "\n"
+    return "\n" + ("-"*lng) + "\n"
 
 def is_a_current_stash(stash_id):
-	stash = svn_stash()
-	stash.load(stash_id)
-	current_dir_parts = CURRENT_DIR.split("/")
-	stash_dir_parts = stash.root_url.split("/")
-	stash_dir_parts = stash_dir_parts[:len(current_dir_parts)]
-	stash_dir = "/".join(stash_dir_parts)
-	if ".svn" in os.listdir(CURRENT_DIR):	
-		return stash_dir == CURRENT_DIR
-	return False
+    stash = svn_stash()
+    stash.load(stash_id)
+    current_dir_parts = CURRENT_DIR.split("/")
+    stash_dir_parts = stash.root_url.split("/")
+    stash_dir_parts = stash_dir_parts[:len(current_dir_parts)]
+    stash_dir = "/".join(stash_dir_parts)
+    if ".svn" in os.listdir(CURRENT_DIR):
+        return stash_dir == CURRENT_DIR
+    return False
